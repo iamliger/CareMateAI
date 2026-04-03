@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 지도 영역 디자인 */
+    #map { width: 100%; height: 65vh; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+    .map-container { position: relative; margin-top: 20px; }
+    
+    /* 검색 버튼 패널 */
+    .filter-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn-filter { 
+        border: none; background: #fff; color: #334155; padding: 12px 20px; 
+        border-radius: 14px; font-weight: 700; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: 0.3s; display: flex; align-items: center;
+    }
+    .btn-filter:hover { background: #4361ee; color: #fff; transform: translateY(-2px); }
+    .btn-filter i { margin-right: 8px; }
+    
+    /* 마커 정보창 스타일 */
+    .info-window { padding: 15px; min-width: 180px; font-family: 'Pretendard', sans-serif; }
+    .info-window strong { display: block; margin-bottom: 5px; color: #4361ee; }
+</style>
+
+<div class="container py-4 py-lg-5">
+    <div class="mb-4 d-flex justify-content-between align-items-end">
+        <div>
+            <h2 class="fw-800 mb-1">우리 동네 의료진 찾기</h2>
+            <p class="text-secondary small mb-0">현재 위치를 기반으로 가장 가까운 시설을 안내합니다.</p>
+        </div>
+        <button onclick="getCurrentLocation()" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+            <i class="bi bi-geo-alt-fill me-1"></i> 현재 위치 재설정
+        </button>
+    </div>
+
+    <!-- 검색 필터 -->
+    <div class="filter-group">
+        <button onclick="searchPlaces('내과')" class="btn-filter"><i class="bi bi-hospital"></i>내과</button>
+        <button onclick="searchPlaces('보건소')" class="btn-filter"><i class="bi bi-building-check"></i>보건소</button>
+        <button onclick="searchPlaces('약국')" class="btn-filter"><i class="bi bi-capsule"></i>약국</button>
+        <button onclick="searchPlaces('금연지원센터')" class="btn-filter"><i class="bi bi-no-adult"></i>금연지원</button>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+</div>
+
+<!-- [중요] 카카오맵 SDK 로드 
+     반드시 appkey= 뒤에 발급받으신 자바스크립트 키를 넣어야 'kakao is not defined' 에러가 사라집니다. -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=b9c86343893037a2c120b4f47671f75d&libraries=services"></script>
+
+<script>
+    // 카카오 라이브러리가 로드되었는지 확인 후 실행
+    window.onload = function() {
+        if (typeof kakao === 'undefined') {
+            alert("카카오 지도 라이브러리를 불러오지 못했습니다. API 키와 도메인 설정을 확인해주세요.");
+            return;
+        }
+
+        var mapContainer = document.getElementById('map'), 
+            mapOption = { 
+                center: new kakao.maps.LatLng(37.566826, 126.9786567), // 기본 서울시청
+                level: 3 
+            }; 
+
+        // 지도 생성
+        var map = new kakao.maps.Map(mapContainer, mapOption);
+        var ps = new kakao.maps.services.Places(); 
+        var infowindow = new kakao.maps.InfoWindow({zIndex:1});
+
+        // 현재 위치로 이동 함수
+        window.getCurrentLocation = function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var lat = position.coords.latitude, 
+                        lon = position.coords.longitude;
+                    var locPosition = new kakao.maps.LatLng(lat, lon);
+                    
+                    map.setCenter(locPosition);
+                    searchPlaces('병원'); // 내 주변 병원 자동 검색
+                });
+            } else {
+                alert("이 브라우저에서는 위치 정보(GPS)를 사용할 수 없습니다.");
+            }
+        };
+
+        // 장소 검색 함수
+        window.searchPlaces = function(keyword) {
+            infowindow.close();
+            ps.keywordSearch(keyword, function(data, status) {
+                if (status === kakao.maps.services.Status.OK) {
+                    var bounds = new kakao.maps.LatLngBounds();
+                    // 기존 마커 제거 로직은 생략(간결화), 새로운 마커 생성
+                    for (var i=0; i<data.length; i++) {
+                        displayMarker(data[i]);    
+                        bounds.extend(new kakao.maps.LatLng(data[i].y, data[i].x));
+                    }       
+                    map.setBounds(bounds);
+                }
+            }, { location: map.getCenter(), radius: 3000 }); 
+        };
+
+        // 마커 표시 함수
+        function displayMarker(place) {
+            var marker = new kakao.maps.Marker({
+                map: map,
+                position: new kakao.maps.LatLng(place.y, place.x) 
+            });
+
+            kakao.maps.event.addListener(marker, 'click', function() {
+                infowindow.setContent('<div class="info-window"><strong>' + place.place_name + '</strong><span class="small text-muted">' + (place.phone || '번호 없음') + '</span><br><a href="https://map.kakao.com/link/to/' + place.id + '" target="_blank" class="btn btn-sm btn-link p-0 small">길찾기</a></div>');
+                infowindow.open(map, marker);
+            });
+        }
+
+        // 초기 실행: 현재 위치 잡기
+        getCurrentLocation();
+    };
+</script>
+{% endblock %}

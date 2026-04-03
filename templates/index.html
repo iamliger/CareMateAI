@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .ai-hero { background: linear-gradient(145deg, #4361ee 0%, #3a0ca3 100%); color: #fff; padding: 60px 0; border-radius: 0 0 50px 50px; position: relative; }
+    .ai-character { width: 120px; height: 120px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; border: 6px solid rgba(255,255,255,0.2); transition: 0.5s; cursor: pointer; }
+    .ai-character.speaking { animation: pulse 0.8s infinite; border-color: #4cc9f0; }
+    
+    /* [신규] 건강 지키미 대시보드 스타일 */
+    .guard-card { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; padding: 20px; margin-top: 30px; }
+    .achievement-bar { height: 10px; background: rgba(255, 255, 255, 0.2); border-radius: 5px; overflow: hidden; }
+    .achievement-fill { height: 100%; background: #4cc9f0; width: {{ achievement_rate }}%; transition: 1s ease-out; }
+</style>
+
+<header class="ai-hero text-center shadow mb-5">
+    <div class="container">
+        <div id="character" class="ai-character shadow" onclick="aliceSpeak('{{ guard_status }} 주인님, 오늘도 함께해요!')">
+            <i class="bi bi-robot text-primary display-4"></i>
+        </div>
+        
+        <h2 class="fw-800 mb-2">안녕하세요, {{ username }} 님!</h2>
+        
+        <!-- [신규] 건강 지키미 활동 지수 -->
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="guard-card text-start shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-white"><i class="bi bi-shield-fill-check me-1"></i> 건강 지키미 성취도</span>
+                        <span class="small fw-bold">{{ achievement_rate }}% ({{ guard_status }})</span>
+                    </div>
+                    <div class="achievement-bar mb-2"><div class="achievement-fill"></div></div>
+                    <p class="small opacity-75 mb-0">최근 7일 중 {{ achievement_rate|divisibleby:14 }}일 기록하셨습니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="ai-message" class="fs-5 opacity-75 mt-4 mb-4">
+            {% if latest_advice %}
+                <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill">AI 엘리스 코칭</span><br>
+                {{ latest_advice.ai_advice|linebreaksbr|truncatechars:150 }}
+            {% else %}
+                주인님의 만 나이는 <strong>{{ age }}세</strong>입니다. 기록을 시작해볼까요?
+            {% endif %}
+        </div>
+        
+        <div class="h1 fw-900 mb-4" style="color: {{ bmi_color }};">{{ bmi }}</div>
+        <button id="speakBtn" onclick="speakAI()" class="btn btn-white text-primary rounded-pill px-4 shadow fw-bold" disabled>AI 로딩중...</button>
+    </div>
+</header>
+
+<div class="container mb-5 px-4">
+    <!-- 그래프 섹션 -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-6"><div class="card border-0 shadow-sm p-4 bg-white rounded-4"><h6 class="fw-bold text-muted mb-4">체중 변화</h6><canvas id="weightChart"></canvas></div></div>
+        <div class="col-lg-6"><div class="card border-0 shadow-sm p-4 bg-white rounded-4"><h6 class="fw-bold text-muted mb-4">활동량 (Steps)</h6><canvas id="stepsChart"></canvas></div></div>
+    </div>
+
+    <!-- 메뉴 리스트 -->
+    <div class="row g-3 mb-5 text-center px-2">
+        <div class="col-6 col-md-3"><div class="card bg-dark text-white border-0 rounded-4 p-4 h-100 shadow-sm" onclick="location.href='{% url 'ai_consult' %}'" style="cursor:pointer;"><h6 class="fw-bold text-warning">🆘 복구상담</h6></div></div>
+        <div class="col-6 col-md-3"><div class="card bg-success text-white border-0 rounded-4 p-4 h-100 shadow-sm" onclick="location.href='{% url 'recipe_list' %}'" style="cursor:pointer;"><h6 class="fw-bold">🥗 건강식단</h6></div></div>
+        <div class="col-6 col-md-3"><div class="card bg-primary text-white border-0 rounded-4 p-4 h-100 shadow-sm" onclick="location.href='{% url 'hospital_map' %}'" style="cursor:pointer;"><h6 class="fw-bold">📍 병원찾기</h6></div></div>
+        <div class="col-6 col-md-3"><div class="card bg-info text-white border-0 rounded-4 p-4 h-100 shadow-sm" onclick="location.href='{% url 'my_page' %}'" style="cursor:pointer;"><h6 class="fw-bold">📱 마이케어</h6></div></div>
+    </div>
+</div>
+
+<script>
+    // [핵심] 어제 기록 누락 감지 시 모달 띄우기
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if missing_yesterday %}
+            // base.html에 정의된 showAliceModal 함수 호출
+            showAliceModal('엘리스가 슬퍼요 😭', '주인님! 어제 건강 기록을 깜빡하셨네요. 지금이라도 어제 데이터를 채워 성취도를 올려볼까요?');
+            aliceSpeak("어제 기록을 깜빡하셨네요. 엘리스가 기다리고 있었답니다.");
+        {% endif %}
+    });
+
+    // 그래프
+    new Chart(document.getElementById('weightChart'), { type: 'line', data: { labels: {{ chart_labels|safe }}, datasets: [{ data: {{ chart_weight|safe }}, borderColor: '#4361ee', tension: 0.4, fill: true, backgroundColor: 'rgba(67, 97, 238, 0.05)' }] }, options: { plugins: { legend: { display: false } } } });
+    new Chart(document.getElementById('stepsChart'), { type: 'bar', data: { labels: {{ chart_labels|safe }}, datasets: [{ data: {{ chart_steps|safe }}, backgroundColor: '#4cc9f0', borderRadius: 8 }] }, options: { plugins: { legend: { display: false } } } });
+</script>
+{% endblock %}

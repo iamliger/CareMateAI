@@ -1,0 +1,20 @@
+{% extends "manager/base_manager.html" %}
+{% block content %}
+<div class="container py-5" style="max-width: 700px;">
+    <h3 class="fw-bold mb-4">🩺 전문가 상담 답변 작성</h3>
+    <div class="card border-0 shadow-lg rounded-4 p-4">
+        <div class="mb-4">
+            <label class="small fw-bold text-muted">대상 사용자: {{ log.user.username }}</label>
+            <div class="p-3 bg-light rounded-3 mt-1 small"><strong>고민내용:</strong> {{ log.description }}</div>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="form-label fw-bold">의학적 조언 (Expert Tip)</label>
+                <textarea name="expert_tip" class="form-control rounded-3" rows="5" required>{{ log.expert_tip }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow">답변 저장 및 발송</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

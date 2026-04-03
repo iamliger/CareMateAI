@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5" style="max-width: 600px;">
+    <h3 class="fw-bold mb-4 text-center">건강 레시피 나누기</h3>
+    <div class="card border-0 shadow-lg rounded-4 p-4">
+        <form method="post" enctype="multipart/form-data" onsubmit="showLoading('이미지 보안 검사 및 레시피 등록 중...')">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold">요리 제목</label>
+                <input type="text" name="title" class="form-control rounded-3" placeholder="예: 단백질 폭탄 샐러드" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">예상 칼로리</label>
+                <input type="number" name="calories" class="form-control rounded-3" value="0">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">조리 방법</label>
+                <textarea name="instructions" class="form-control rounded-3" rows="5" required></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-primary"><i class="bi bi-camera-fill me-1"></i> 완성 사진 (보안 업로드)</label>
+                <input type="file" name="image" class="form-control rounded-3" accept="image/*" required>
+                <div class="form-text small">AI가 이미지 속 악성코드를 자동 제거합니다.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow">안전하게 공유하기</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

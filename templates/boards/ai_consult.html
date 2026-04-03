@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 600px;">
+    <div class="text-center mb-5">
+        <div class="bg-primary text-white d-inline-block p-3 rounded-circle mb-3 shadow-lg">
+            <i class="bi bi-chat-heart fs-1"></i>
+        </div>
+        <h2 class="fw-800">AI 긴급 복구 상담</h2>
+        <p class="text-secondary">작은 실수는 괜찮아요. 지금 바로 행동 지침을 드릴게요.</p>
+    </div>
+
+    <div class="card border-0 shadow-lg rounded-4 p-4 p-lg-5">
+        <form method="post" id="consultForm" onsubmit="startAnalysis()">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-primary">발생한 상황 선택</label>
+                <div class="row g-2">
+                    <div class="col-6"><input type="radio" class="btn-check" name="event_type" id="e1" value="흡연" required><label class="btn btn-outline-primary w-100 py-3 rounded-3" for="e1">🚬 흡연 실수</label></div>
+                    <div class="col-6"><input type="radio" class="btn-check" name="event_type" id="e2" value="과식"><label class="btn btn-outline-primary w-100 py-3 rounded-3" for="e2">🍕 과식/폭식</label></div>
+                    <div class="col-6"><input type="radio" class="btn-check" name="event_type" id="e3" value="음주"><label class="btn btn-outline-primary w-100 py-3 rounded-3" for="e3">🍺 음주</label></div>
+                    <div class="col-6"><input type="radio" class="btn-check" name="event_type" id="e4" value="운동거름"><label class="btn btn-outline-primary w-100 py-3 rounded-3" for="e4">😴 운동 패스</label></div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted">더 구체적인 상황 (선택)</label>
+                <textarea name="description" class="form-control rounded-3" rows="3" placeholder="예: 오늘 회식 때문에 참기 힘들었어요..."></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow">
+                엘리스에게 처방받기 <i class="bi bi-magic ms-1"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function startAnalysis() {
+        // 로딩창 띄우기
+        showLoading("엘리스가 당신의 데이터를 분석하고 있습니다...");
+        
+        // 3초 후 메시지 변경 (기다리는 지루함 감소)
+        setTimeout(() => {
+            document.getElementById('loadingMsg').innerText = "최적의 복구 전략을 수립 중입니다...";
+        }, 3000);
+        
+        setTimeout(() => {
+            document.getElementById('loadingMsg').innerText = "거의 다 되었습니다! 조금만 더 기다려주세요.";
+        }, 6000);
+    }
+</script>
+{% endblock %}

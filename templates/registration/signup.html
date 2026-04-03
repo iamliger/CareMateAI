@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareMate AI - 회원가입</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; display: flex; align-items: center; min-height: 100vh; }
+        .signup-card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+    </style>
+</head>
+<body>
+<div class="container d-flex justify-content-center">
+    <div class="card signup-card p-4">
+        <h3 class="text-center fw-bold text-primary mb-4">CareMate AI 회원가입</h3>
+        <form method="post" id="signupForm">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold">아이디 (실시간 체크)</label>
+                <input type="text" name="username" id="id_username" class="form-control" placeholder="아이디 입력" required>
+                <div id="id_feedback" class="small mt-1"></div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold">비밀번호 (보이기/숨기기 가능)</label>
+                <div class="input-group">
+                    <input type="password" name="password" id="id_password" class="form-control" placeholder="비밀번호 입력" required>
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" id="submitBtn" class="btn btn-primary w-100 fw-bold py-2" disabled>가입하기</button>
+        </form>
+        <div class="text-center mt-3 small">
+            이미 계정이 있나요? <a href="{% url 'login' %}" class="text-decoration-none">로그인</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // 1. 비밀번호 보이기/숨기기 토글 기능
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const password = document.getElementById('id_password');
+        const icon = this.querySelector('i');
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        icon.classList.toggle('bi-eye');
+        icon.classList.toggle('bi-eye-slash');
+    });
+
+    // 2. 실시간 아이디 중복 체크 기능 (AJAX)
+    $('#id_username').on('input', function() {
+        const username = $(this).val();
+        if (username.length < 2) {
+            $('#id_feedback').text('').removeClass('text-success text-danger');
+            $('#submitBtn').prop('disabled', true);
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'check_id' %}",
+            data: { 'username': username },
+            dataType: 'json',
+            success: function(data) {
+                if (data.is_taken) {
+                    $('#id_feedback').text('❌ 이미 사용 중인 아이디입니다.').addClass('text-danger').removeClass('text-success');
+                    $('#submitBtn').prop('disabled', true);
+                } else {
+                    $('#id_feedback').text('✅ 사용 가능한 아이디입니다.').addClass('text-success').removeClass('text-danger');
+                    $('#submitBtn').prop('disabled', false);
+                }
+            }
+        });
+    });
+</script>
+</body>
+</html>

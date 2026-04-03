@@ -1,0 +1,84 @@
+{% extends "manager/base_manager.html" %}
+
+{% block content %}
+<div class="mb-5">
+    <h2 class="fw-800 text-dark mb-1">운영 통계 리포트</h2>
+    <p class="text-secondary small">CareMate AI 시스템의 실시간 현황을 확인하세요.</p>
+</div>
+
+<div class="row g-3 g-lg-4 mb-5">
+    <!-- 오늘 방문자 -->
+    <div class="col-12 col-md-4">
+        <div class="card p-3 border-0" style="background: linear-gradient(45deg, #4361ee, #4cc9f0); color: #fff;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="small opacity-75 fw-600">TODAY VISITORS</div>
+                    <div class="display-5 fw-800">{{ today_visitors }}</div>
+                </div>
+                <i class="bi bi-eye fs-1 opacity-25"></i>
+            </div>
+        </div>
+    </div>
+    <!-- 누적 회원 -->
+    <div class="col-12 col-md-4">
+        <div class="card p-3 border-0 bg-white shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="small text-secondary fw-600">TOTAL USERS</div>
+                    <div class="display-5 fw-800 text-dark">{{ total_users }}</div>
+                </div>
+                <i class="bi bi-people fs-1 text-primary opacity-10"></i>
+            </div>
+        </div>
+    </div>
+    <!-- 누적 게시글 -->
+    <div class="col-12 col-md-4">
+        <div class="card p-3 border-0 bg-white shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="small text-secondary fw-600">TOTAL POSTS</div>
+                    <div class="display-5 fw-800 text-dark">{{ total_posts }}</div>
+                </div>
+                <i class="bi bi-chat-square-text fs-1 text-info opacity-10"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">최근 가입 유저</span>
+                <a href="{% url 'manager_user_list' %}" class="btn btn-light btn-sm">전체보기</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <tbody>
+                            {% for u in recent_users %}
+                            <tr>
+                                <td class="ps-4 py-3 fw-600 text-primary">{{ u.username }}</td>
+                                <td class="text-end pe-4 text-secondary small">{{ u.date_joined|date:"m/d H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td class="text-center py-5 text-muted">가입 기록이 없습니다.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-bold">게시글 실시간 모니터링</div>
+            <div class="card-body p-0 text-center py-5 text-muted">
+                <i class="bi bi-shield-check fs-1 opacity-25"></i>
+                <p class="mt-2 small">현재 클린 시스템 가동 중</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

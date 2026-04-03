@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}나의 프로필 관리{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 600px;">
+    <h2 class="fw-800 text-dark mb-4 text-center">👤 나의 프로필 관리</h2>
+    
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-body p-4 p-lg-5">
+            <form method="post" onsubmit="showLoading('프로필 정보를 업데이트 중입니다...')">
+                {% csrf_token %}
+                
+                <!-- 기본 정보 -->
+                <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">기본 신원 정보</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="small fw-bold">성별</label>
+                        <select name="gender" class="form-select rounded-3" id="genderSelect">
+                            <option value="M" {% if health.gender == "M" %}selected{% endif %}>남성</option>
+                            <option value="F" {% if health.gender == "F" %}selected{% endif %}>여성</option>
+                            <option value="U" {% if health.gender == "U" %}selected{% endif %}>미설정</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="small fw-bold">생년월일</label>
+                        <input type="date" name="birth_date" class="form-control rounded-3" value="{{ health.birth_date|date:'Y-m-d' }}">
+                    </div>
+                </div>
+
+                <!-- 여성 전용 케어 (자바스크립트로 여성 선택 시에만 노출 가능) -->
+                <div id="femaleOnly" class="bg-light p-3 rounded-4 mb-4" style="display: {% if health.gender == 'F' %}block{% else %}none{% endif %};">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="is_pregnant" id="pregCheck" {% if health.is_pregnant %}checked{% endif %}>
+                        <label class="form-check-label fw-bold small" for="pregCheck">🤰 임산부 모드 활성화</label>
+                    </div>
+                    <div id="dueDiv" style="display: {% if health.is_pregnant %}block{% else %}none{% endif %};">
+                        <label class="small fw-bold mt-2">출산 예정일</label>
+                        <input type="date" name="due_date" class="form-control rounded-3" value="{{ health.expected_due_date|date:'Y-m-d' }}">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="small fw-bold">나의 휴대폰</label>
+                    <input type="text" name="phone_number" class="form-control rounded-3" value="{{ health.phone_number }}" placeholder="010-0000-0000">
+                </div>
+                <div class="mb-4">
+                    <label class="small fw-bold">비상 연락처</label>
+                    <input type="text" name="emergency_contact" class="form-control rounded-3" value="{{ health.emergency_contact }}" placeholder="010-0000-0000">
+                </div>
+
+                <!-- 보안 정보 -->
+                <h6 class="fw-bold text-danger border-bottom pb-2 mb-3">보안 및 비밀번호</h6>
+                <div class="mb-4">
+                    <label class="small fw-bold">새 비밀번호 (변경 시에만 입력)</label>
+                    <input type="password" name="new_password" class="form-control rounded-3" placeholder="********">
+                    <div class="form-text small">입력하지 않으면 기존 비밀번호가 유지됩니다.</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-4 shadow">프로필 정보 저장</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 성별 선택에 따른 화면 제어
+    document.getElementById('genderSelect').addEventListener('change', function() {
+        document.getElementById('femaleOnly').style.display = (this.value === 'F') ? 'block' : 'none';
+    });
+    // 임신 여부에 따른 예정일 입력창 제어
+    document.getElementById('pregCheck').addEventListener('change', function() {
+        document.getElementById('dueDiv').style.display = this.checked ? 'block' : 'none';
+    });
+</script>
+{% endblock %}

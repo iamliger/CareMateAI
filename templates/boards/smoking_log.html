@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}실시간 흡연 트래커{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .smoke-btn { width: 180px; height: 180px; border-radius: 50%; background: linear-gradient(145deg, #ff4d4d, #c00); border: 10px solid rgba(255,255,255,0.2); color: white; font-weight: 900; font-size: 1.5rem; box-shadow: 0 15px 35px rgba(204, 0, 0, 0.3); transition: 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; margin: 0 auto; }
+    .smoke-btn:active { transform: scale(0.92); }
+</style>
+
+<div class="container py-5" style="max-width: 800px;">
+    <div class="text-center mb-5">
+        <h2 class="fw-800 text-dark mb-1">🚬 실시간 흡연 일지</h2>
+        <p class="text-secondary small">정직한 기록이 변화의 시작입니다.</p>
+    </div>
+
+    <!-- 카운터 카드 -->
+    <div class="card border-0 shadow-sm rounded-5 p-5 mb-5 bg-white text-center">
+        <div class="smoke-btn mb-4" onclick="recordSmoke()">한 대 더<br>기록하기</div>
+        <div class="mt-2">
+            <span class="small text-muted fw-bold">오늘의 총 흡연량</span>
+            <div class="display-3 fw-900 text-danger">{{ today_count }}<small class="fs-5">개비</small></div>
+        </div>
+        <div class="mt-4 p-3 bg-light rounded-4 fw-bold text-primary">
+            <i class="bi bi-robot me-2"></i>{{ ment }}
+        </div>
+    </div>
+
+    <!-- 그래프 -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-5 bg-white">
+        <h6 class="fw-bold text-muted mb-4"><i class="bi bi-graph-up-arrow me-2"></i>주간 흡연 트렌드</h6>
+        <canvas id="smokeChart" height="150"></canvas>
+    </div>
+
+    <!-- 상세 리스트 (에러 해결 & 삭제 버튼 추가) -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white fw-bold py-3">오늘의 기록 상세</div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                {% for log in today_logs %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-4 py-3">
+                    <div>
+                        <!-- [수정] forloop.counter를 사용하여 정확한 숫자 출력 -->
+                        <span class="fw-bold text-dark">제 {{ forloop.counter }}회 흡연</span>
+                        <small class="text-muted ms-3">{{ log.smoked_at|date:"A H:i:s" }}</small>
+                    </div>
+                    <!-- [신규] 기록 삭제 (CRUD 보장) -->
+                    <a href="{% url 'delete_smoke' log.id %}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('이 기록을 취소할까요?')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-center py-5 text-muted small">아직 오늘의 기록이 없습니다. 금연 화이팅!</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    function recordSmoke() {
+        if(confirm("기록하시겠습니까? 물 한잔을 더 마셔보는 건 어떨까요?")) {
+            showLoading("기록 중...");
+            fetch("{% url 'add_smoke' %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } }).then(() => location.reload());
+        }
+    }
+    new Chart(document.getElementById('smokeChart'), { type: 'line', data: { labels: {{ labels|safe }}, datasets: [{ data: {{ chart_data|safe }}, borderColor: '#ff4d4d', backgroundColor: 'rgba(255, 77, 77, 0.1)', fill: true, tension: 0.4 }] }, options: { plugins: { legend: { display: false } } } });
+</script>
+{% endblock %}

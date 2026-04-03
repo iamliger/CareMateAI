@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5" style="max-width: 800px;">
+    <!-- 헤더 -->
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <a href="{% url 'post_list' post.category.slug %}" class="text-decoration-none text-secondary small fw-bold">
+            <i class="bi bi-chevron-left me-1"></i> 목록으로 돌아가기
+        </a>
+    </div>
+
+    <!-- 본문 -->
+    <div class="card border-0 shadow-sm mb-5 p-4 p-lg-5">
+        <div class="badge bg-light text-primary mb-2 align-self-start">{{ post.category.name }}</div>
+        <h2 class="fw-800 mb-4">{{ post.title }}</h2>
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom text-muted small">
+            <div><strong>{{ post.author.username }}</strong> · {{ post.created_at|date:"Y.m.d H:i" }}</div>
+            <div class="btn-group btn-group-sm">
+                <a href="{% url 'post_vote' post.id 'like' %}" class="btn btn-outline-primary border-0"><i class="bi bi-hand-thumbs-up-fill me-1"></i> {{ post.likes.count }}</a>
+                <a href="{% url 'post_vote' post.id 'dislike' %}" class="btn btn-outline-danger border-0"><i class="bi bi-hand-thumbs-down-fill me-1"></i> {{ post.dislikes.count }}</a>
+            </div>
+        </div>
+        <div class="lh-lg mb-5" style="white-space: pre-wrap; font-size: 1.05rem;">{{ post.content }}</div>
+    </div>
+
+    <!-- 댓글 영역 -->
+    <div class="mb-5">
+        <h5 class="fw-bold mb-4">댓글 <span class="text-primary">{{ post.comments.count }}</span></h5>
+        
+        {% for comment in comments %}
+        <div class="mb-4 pb-3 border-bottom">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="fw-bold small text-dark">{{ comment.author.username }}</span>
+                <span class="text-muted small">{{ comment.created_at|date:"m/d H:i" }}</span>
+            </div>
+            <p class="small mb-2 text-secondary">{{ comment.content }}</p>
+            <button class="btn btn-link p-0 text-decoration-none small text-primary fw-bold" onclick="toggleReply('{{ comment.id }}')">답글달기</button>
+
+            <!-- 대댓글 리스트 -->
+            <div class="ms-4 mt-3 ps-3 border-start">
+                {% for reply in comment.replies.all %}
+                <div class="mb-3">
+                    <div class="small fw-bold mb-1">{{ reply.author.username }} <span class="ms-2 text-muted fw-normal">{{ reply.created_at|date:"H:i" }}</span></div>
+                    <p class="small text-secondary mb-0">{{ reply.content }}</p>
+                </div>
+                {% endfor %}
+                
+                <!-- 대댓글 폼 -->
+                <form action="{% url 'comment_create' post.id %}" method="post" id="reply-{{ comment.id }}" class="mt-2 d-none">
+                    {% csrf_token %}<input type="hidden" name="parent_id" value="{{ comment.id }}">
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="content" class="form-control" placeholder="답글 입력..." required>
+                        <button class="btn btn-primary" type="submit">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- 새 댓글 폼 -->
+        <form action="{% url 'comment_create' post.id %}" method="post" class="mt-5 shadow-sm rounded-4 overflow-hidden border">
+            {% csrf_token %}
+            <textarea name="content" class="form-control border-0 p-3" rows="3" placeholder="매너 있는 댓글은 작성자에게 큰 힘이 됩니다." required></textarea>
+            <div class="bg-light p-2 text-end"><button type="submit" class="btn btn-primary px-4 fw-bold">댓글 등록</button></div>
+        </form>
+    </div>
+</div>
+
+<script>function toggleReply(id){ document.getElementById('reply-'+id).classList.toggle('d-none'); }</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}나의 복구 일지{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes pulse-border { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.7); } 70% { transform: scale(1.03); box-shadow: 0 0 0 15px rgba(67, 97, 238, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(67, 97, 238, 0); } }
+    .btn-attention { animation: pulse-border 2s infinite; }
+    .accordion-item { border: none; border-radius: 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; }
+</style>
+
+<div class="container py-5" style="max-width: 850px;">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="fw-800 text-dark">📋 나만의 복구 상담 일지</h2>
+        {% if has_content %}
+        <a href="{% url 'ai_consult' %}" class="btn btn-primary rounded-pill px-4 shadow btn-attention">신규 상담하기</a>
+        {% endif %}
+    </div>
+
+    {% if not has_content %}
+        <div class="text-center py-5">
+            <h4 class="text-muted mb-4">아직 상담 기록이 없습니다.</h4>
+            <a href="{% url 'ai_consult' %}" class="btn btn-primary rounded-pill px-5 shadow-lg">첫 상담 시작</a>
+        </div>
+    {% else %}
+        <div class="accordion" id="logAccordion">
+            {% for log in logs %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed py-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ log.id }}">
+                        <div class="d-flex justify-content-between w-100 pe-4 align-items-center">
+                            <span><span class="badge bg-primary me-2">{{ log.event_type }}</span><span class="small fw-bold text-dark">{{ log.created_at|date:"Y.m.d H:i" }}</span></span>
+                            <span class="small text-muted d-none d-md-inline">{{ log.description|truncatechars:25 }}</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ log.id }}" class="accordion-collapse collapse" data-bs-parent="#logAccordion">
+                    <div class="accordion-body p-4 bg-white">
+                        <!-- 상담 내용 & 수정/삭제 버튼 -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <label class="small fw-bold text-muted">나의 고민</label>
+                                <div class="btn-group btn-group-sm">
+                                    <!-- AI 답변이 없거나 지연 중일 때만 수정 가능 -->
+                                    {% if not log.ai_advice or "지연" in log.ai_advice %}
+                                    <button class="btn btn-outline-secondary py-0" data-bs-toggle="modal" data-bs-target="#editModal{{ log.id }}">수정</button>
+                                    {% endif %}
+                                    <a href="{% url 'recovery_action' log.id 'delete' %}" class="btn btn-outline-danger py-0" onclick="return confirm('이 기록을 목록에서 지울까요? (데이터는 보존됩니다)')">삭제</a>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-light rounded-3 text-secondary">{{ log.description }}</div>
+                        </div>
+                        <div class="row g-4">
+                            <div class="col-md-7 border-end">
+                                <h6 class="fw-bold text-primary"><i class="bi bi-robot me-1"></i> AI 엘리스의 조언</h6>
+                                <div class="small lh-lg">{{ log.ai_advice|linebreaksbr|default:"현재 분석 중입니다..." }}</div>
+                            </div>
+                            <div class="col-md-5">
+                                <h6 class="fw-bold text-danger"><i class="bi bi-person-badge-fill me-1"></i> 전문가 팁</h6>
+                                <div class="p-3 bg-danger-subtle rounded-3 small text-dark">{{ log.expert_tip|default:"전문가 답변 대기 중" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 수정 모달 -->
+            <div class="modal fade" id="editModal{{ log.id }}" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 rounded-4">
+                        <form action="{% url 'recovery_action' log.id 'edit' %}" method="post">
+                            {% csrf_token %}
+                            <div class="modal-header"><h5 class="fw-bold">상담 내용 수정</h5></div>
+                            <div class="modal-body"><textarea name="description" class="form-control" rows="4">{{ log.description }}</textarea></div>
+                            <div class="modal-footer border-0"><button type="submit" class="btn btn-primary w-100 py-2">수정 완료</button></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <nav class="mt-5"><ul class="pagination justify-content-center">
+            {% if logs.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}">이전</a></li>{% endif %}
+            <li class="page-item active"><span class="page-link">{{ logs.number }}</span></li>
+            {% if logs.has_next %}<li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}">다음</a></li>{% endif %}
+        </ul></nav>
+    {% endif %}
+</div>
+{% endblock %}

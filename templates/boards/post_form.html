@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5" style="max-width: 700px;">
+    <h3 class="fw-bold mb-4">커뮤니티 글쓰기</h3>
+    <div class="card border-0 shadow-sm p-4 p-lg-5">
+        <!-- [중요] enctype 필수 -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="form-label small fw-bold">제목</label>
+                <input type="text" name="title" class="form-control" placeholder="제목" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold">내용</label>
+                <textarea name="content" class="form-control" rows="8" placeholder="건강 지식을 나눠주세요." required></textarea>
+            </div>
+            <!-- [추가] 보안 업로드 섹션 -->
+            <div class="mb-4 p-3 bg-light rounded-3">
+                <label class="form-label small fw-bold text-primary"><i class="bi bi-shield-lock-fill me-1"></i> 이미지 보안 업로드</label>
+                <input type="file" name="image" class="form-control" accept="image/*">
+                <div class="form-text small text-danger">※ 모든 이미지는 AI 보안 검사를 거쳐 악성 코드가 자동 제거됩니다.</div>
+            </div>
+            <div class="form-check form-switch mb-4">
+                <input class="form-check-input" type="checkbox" name="is_secret" id="is_secret">
+                <label class="form-check-label small fw-bold" for="is_secret">비밀글 설정</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow">안전하게 게시하기</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

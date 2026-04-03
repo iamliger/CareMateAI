@@ -1,0 +1,65 @@
+{% extends "manager/base_manager.html" %}
+
+{% block content %}
+<div class="mb-5 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="fw-800 text-dark mb-1">회원 통합 관리</h2>
+        <p class="text-secondary small">서비스 이용 정지, 추방 및 복구를 관리합니다.</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card-header bg-white fw-bold py-3">CareMate 가입 회원 목록</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr class="small text-secondary">
+                        <th class="ps-4 py-3">아이디</th>
+                        <th>상태</th>
+                        <th>가입일시</th>
+                        <th class="text-center">관리 액션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr {% if u.id == user.id %}class="table-primary-subtle"{% endif %}>
+                        <td class="ps-4 py-3">
+                            <span class="fw-bold text-dark">{{ u.username }}</span>
+                            {% if u.id == user.id %}
+                            <span class="badge bg-primary ms-1">나(접속중)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge bg-success-subtle text-success px-2 py-1">활성</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger px-2 py-1">차단됨</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+                        <td class="text-center">
+                            {% if u.id != user.id %}
+                                <!-- 타인인 경우: 모든 액션 가능 -->
+                                <div class="btn-group btn-group-sm">
+                                    {% if u.is_active %}
+                                        <a href="{% url 'user_action' u.id 'block' %}" class="btn btn-warning shadow-sm fw-bold">차단(삭제)</a>
+                                    {% else %}
+                                        <a href="{% url 'user_action' u.id 'unblock' %}" class="btn btn-success shadow-sm fw-bold">복구하기</a>
+                                    {% endif %}
+                                    <a href="{% url 'user_action' u.id 'kick' %}" class="btn btn-outline-primary fw-bold ms-1" title="즉시 세션 종료">강제추방</a>
+                                </div>
+                            {% else %}
+                                <!-- 본인인 경우: 액션 금지 -->
+                                <span class="text-muted small italic">관리 보호 대상</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
