@@ -51,19 +51,18 @@ def clean_float(val, default=0.0):
 def get_meds_json(user):
     """복약 데이터를 알람 엔진용 JSON으로 변환"""
     meds = Medication.objects.filter(user=user, is_active=True)
-    return json.dumps(
-        [
-            {
-                "name": m.name,
-                "time": m.time_to_take.strftime("%H:%M") if m.time_to_take else "",
-            }
-            for m in meds
-        ]
-    )
+    meds_list = [
+        {
+            "name": m.name,
+            "time": m.time_to_take.strftime("%H:%M") if m.time_to_take else "",
+        }
+        for m in meds
+    ]
+    return json.dumps(meds_list)
 
 
 def secure_image_validator(img_file):
-    """이미지 보안 검증 및 재구성"""
+    """이미지 보안 검증 (악성 코드 파괴 및 재구성)"""
     if not img_file:
         return None
     try:
@@ -93,7 +92,7 @@ def secure_image_validator(img_file):
 
 @login_required
 def index(request):
-    """메인 대시보드 : 그래프, BMI, 인사말, 성취도, 누락 감지 통합"""
+    """메인 대시보드 : 그래프, BMI, 인사말, 성취도, 금연카운터 통합"""
     health, _ = HealthProfile.objects.get_or_create(user=request.user)
     today_log = DailyLog.objects.filter(user=request.user, date=date.today()).first()
     latest_advice = (
@@ -101,6 +100,11 @@ def index(request):
         .order_by("-created_at")
         .first()
     )
+
+    # 금연 카운터
+    today_smoke_count = SmokingLog.objects.filter(
+        user=request.user, date=date.today()
+    ).count()
 
     # 최근 7일 데이터 분석 및 성취도 산출
     labels, weight_data, steps_data = [], [], []
@@ -165,6 +169,7 @@ def index(request):
             "greeting": greeting,
             "latest_advice": latest_advice,
             "today_log": today_log,
+            "today_smoke_count": today_smoke_count,
             "meds_json": get_meds_json(request.user),
             "chart_labels": json.dumps(labels),
             "chart_weight": json.dumps(weight_data),
@@ -180,47 +185,31 @@ def index(request):
 def my_page(request):
     """마이케어 센터 : 일일 기록 + 응급 카드 + 복약 관리"""
     health, _ = HealthProfile.objects.get_or_create(user=request.user)
-    if request.method == "POST":
-        if "weight" in request.POST:
-            try:
-                DailyLog.objects.update_or_create(
-                    user=request.user,
-                    date=date.today(),
-                    defaults={
-                        "weight": clean_float(
-                            request.POST.get("weight"), health.weight
-                        ),
-                        "height": clean_float(
-                            request.POST.get("height"), health.height
-                        ),
-                        "bp_systolic": clean_int(request.POST.get("bp_systolic")),
-                        "bp_diastolic": clean_int(request.POST.get("bp_diastolic")),
-                        "steps": clean_int(request.POST.get("steps")),
-                        "water_ml": clean_int(request.POST.get("water_ml")),
-                        "sleep_hours": clean_float(request.POST.get("sleep_hours")),
-                        "stress_level": clean_int(request.POST.get("stress_level"), 5),
-                        "alcohol_cups": clean_int(request.POST.get("alcohol")),
-                        "smoking_sticks": clean_int(request.POST.get("smoking")),
-                        "breakfast": request.POST.get("breakfast", ""),
-                        "lunch": request.POST.get("lunch", ""),
-                        "dinner": request.POST.get("dinner", ""),
-                        "memo": request.POST.get("memo", ""),
-                    },
-                )
-                health.height = clean_float(request.POST.get("height"), health.height)
-                health.save()
-                messages.success(request, "건강 기록이 저장되었습니다.")
-            except:
-                messages.error(request, "데이터 확인 필요")
-        elif "blood_type" in request.POST:
-            health.blood_type = request.POST.get("blood_type")
-            health.birth_date = request.POST.get("birth_date") or None
-            health.phone_number = request.POST.get("phone_number")
-            health.emergency_contact = request.POST.get("emergency_contact")
-            health.chronic_diseases = request.POST.get("chronic_diseases")
-            health.allergies = request.POST.get("allergies")
+    if request.method == "POST" and "weight" in request.POST:
+        try:
+            DailyLog.objects.update_or_create(
+                user=request.user,
+                date=date.today(),
+                defaults={
+                    "weight": clean_float(request.POST.get("weight"), health.weight),
+                    "height": clean_float(request.POST.get("height"), health.height),
+                    "bp_systolic": clean_int(request.POST.get("bp_systolic")),
+                    "bp_diastolic": clean_int(request.POST.get("bp_diastolic")),
+                    "steps": clean_int(request.POST.get("steps")),
+                    "water_ml": clean_int(request.POST.get("water_ml")),
+                    "sleep_hours": clean_float(request.POST.get("sleep_hours")),
+                    "stress_level": clean_int(request.POST.get("stress_level"), 5),
+                    "breakfast": request.POST.get("breakfast", ""),
+                    "lunch": request.POST.get("lunch", ""),
+                    "dinner": request.POST.get("dinner", ""),
+                    "memo": request.POST.get("memo", ""),
+                },
+            )
+            health.height = clean_float(request.POST.get("height"), health.height)
             health.save()
-            messages.success(request, "의료 프로필 업데이트 완료.")
+            messages.success(request, "건강 기록이 업데이트되었습니다.")
+        except:
+            messages.error(request, "데이터 확인이 필요합니다.")
         return redirect("my_page")
 
     logs = DailyLog.objects.filter(user=request.user).order_by("-date")
@@ -240,6 +229,7 @@ def my_page(request):
 
 @login_required
 def profile_edit(request):
+    """내 정보 관리 (성별, 임신여부, 비밀번호)"""
     health, _ = HealthProfile.objects.get_or_create(user=request.user)
     if request.method == "POST":
         health.gender = request.POST.get("gender")
@@ -249,6 +239,7 @@ def profile_edit(request):
         health.phone_number = request.POST.get("phone_number")
         health.emergency_contact = request.POST.get("emergency_contact")
         health.blood_type = request.POST.get("blood_type")
+        health.chronic_diseases = request.POST.get("chronic_diseases")
         health.save()
         if request.POST.get("new_password"):
             request.user.set_password(request.POST.get("new_password"))
@@ -265,7 +256,7 @@ def profile_edit(request):
 
 @login_required
 def health_update(request):
-    """[해결] 메인 페이지 모달 전용 업데이트 뷰"""
+    """[해결포인트] 메인 페이지 모달 전용 업데이트 뷰"""
     if request.method == "POST":
         h, _ = HealthProfile.objects.get_or_create(user=request.user)
         h.height = clean_float(request.POST.get("height"), h.height)
@@ -277,15 +268,49 @@ def health_update(request):
 
 
 # -----------------------------------------------------------------------------
-# [ 4. 신규 기능 뷰 (SOS, 복약, 금연) ]
+# [ 4. 금연, 복약, AI 서비스 ]
 # -----------------------------------------------------------------------------
 
 
 @login_required
-def send_sos(request):
-    h = request.user.health
-    msg = f"🚨 [SOS] {request.user.username} 님의 위치와 의료카드가 {h.emergency_contact}로 발송되었습니다."
-    return JsonResponse({"status": "success", "message": msg})
+def smoking_dashboard(request):
+    """금연 트래커"""
+    today = date.today()
+    logs = SmokingLog.objects.filter(user=request.user, date=today).order_by(
+        "smoked_at"
+    )
+    count = logs.count()
+    lbls, dat = [], []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        lbls.append(d.strftime("%m/%d"))
+        dat.append(SmokingLog.objects.filter(user=request.user, date=d).count())
+    return render(
+        request,
+        "boards/smoking_log.html",
+        {
+            "today_count": count,
+            "today_logs": logs,
+            "ment": "의지를 응원합니다!",
+            "labels": json.dumps(lbls),
+            "chart_data": json.dumps(dat),
+            "meds_json": get_meds_json(request.user),
+        },
+    )
+
+
+@login_required
+def add_smoke_count(request):
+    if request.method == "POST":
+        SmokingLog.objects.create(user=request.user)
+        return JsonResponse({"status": "success"})
+    return JsonResponse({"status": "fail"}, status=400)
+
+
+@login_required
+def delete_smoke_count(request, log_id):
+    get_object_or_404(SmokingLog, id=log_id, user=request.user).delete()
+    return redirect("smoking_log")
 
 
 @login_required
@@ -297,7 +322,6 @@ def add_medication(request):
             dosage=request.POST.get("dosage", ""),
             time_to_take=request.POST.get("time") or None,
         )
-        messages.success(request, "알람 등록 완료.")
     return redirect("my_page")
 
 
@@ -320,49 +344,6 @@ def delete_medication(request, med_id):
 
 
 @login_required
-def smoking_dashboard(request):
-    today = date.today()
-    logs = SmokingLog.objects.filter(user=request.user, date=today)
-    count = logs.count()
-    lbls, dat = [], []
-    for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        lbls.append(d.strftime("%m/%d"))
-        dat.append(SmokingLog.objects.filter(user=request.user, date=d).count())
-    return render(
-        request,
-        "boards/smoking_log.html",
-        {
-            "today_count": count,
-            "today_logs": logs,
-            "labels": json.dumps(lbls),
-            "chart_data": json.dumps(dat),
-            "ment": "의지를 응원합니다!",
-            "meds_json": get_meds_json(request.user),
-        },
-    )
-
-
-@login_required
-def add_smoke_count(request):
-    if request.method == "POST":
-        SmokingLog.objects.create(user=request.user)
-        return JsonResponse({"status": "success"})
-    return JsonResponse({"status": "fail"}, status=400)
-
-
-@login_required
-def delete_smoke_count(request, log_id):
-    get_object_or_404(SmokingLog, id=log_id, user=request.user).delete()
-    return redirect("smoking_log")
-
-
-# -----------------------------------------------------------------------------
-# [ 5. AI 상담 및 복구 일지 (에러 해결 포인트) ]
-# -----------------------------------------------------------------------------
-
-
-@login_required
 def ai_consult(request):
     if request.method == "POST":
         log = BehaviorLog.objects.create(
@@ -371,7 +352,9 @@ def ai_consult(request):
             description=request.POST.get("description", ""),
         )
         preg = (
-            "임산부입니다. 안전 조언 필수." if request.user.health.is_pregnant else ""
+            "임신 중인 사용자입니다. 안전 최우선."
+            if request.user.health.is_pregnant
+            else ""
         )
         prompt = f"건강코치 엘리스야. {preg} 상황:{log.event_type}({log.description}). 조언 3단계와 '추천식품: 이름' 형식 답변. 전문가팁 추가."
         try:
@@ -384,12 +367,12 @@ def ai_consult(request):
             log.expert_tip = (
                 ai_text.split("[전문가 팁]")[1].strip()
                 if "[전문가 팁]" in ai_text
-                else "생활 습관 관리가 중요해요."
+                else "성실한 노력을 응원합니다."
             )
             log.recommended_food = rf
             log.shop_url = f"https://search.shopping.naver.com/search/all?query={rf}"
             log.save()
-            messages.success(request, "처방전 도착!")
+            messages.success(request, "분석 완료!")
         except:
             log.save()
         return redirect("recovery_board")
@@ -398,9 +381,61 @@ def ai_consult(request):
     )
 
 
+# -----------------------------------------------------------------------------
+# [ 5. 게시판 및 기타 서비스 (에러 해결 핵심) ]
+# -----------------------------------------------------------------------------
+
+
+@login_required
+def recipe_list(request):
+    recipes = Recipe.objects.all().order_by("-created_at")
+    return render(
+        request,
+        "boards/recipe_list.html",
+        {"recipes": recipes, "meds_json": get_meds_json(request.user)},
+    )
+
+
+@login_required
+def recipe_create(request):
+    """[해결] 레시피 등록 기능"""
+    if request.method == "POST":
+        img = secure_image_validator(request.FILES.get("image"))
+        Recipe.objects.create(
+            author=request.user,
+            title=request.POST.get("title"),
+            ingredients=request.POST.get("ingredients"),
+            instructions=request.POST.get("instructions"),
+            calories=clean_int(request.POST.get("calories")),
+            image=img,
+        )
+        messages.success(request, "레시피 공유 완료!")
+        return redirect("recipe_list")
+    return render(
+        request, "boards/recipe_form.html", {"meds_json": get_meds_json(request.user)}
+    )
+
+
+@login_required
+def hospital_map(request):
+    return render(
+        request, "boards/hospital_map.html", {"meds_json": get_meds_json(request.user)}
+    )
+
+
+@login_required
+def send_sos(request):
+    h = request.user.health
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": f"🚨 [SOS] {h.emergency_contact}로 구조 신호가 발송됨.",
+        }
+    )
+
+
 @login_required
 def recovery_board(request):
-    """나만의 복구 상담 게시판"""
     ll = BehaviorLog.objects.filter(user=request.user, is_hidden=False).order_by(
         "-created_at"
     )
@@ -419,60 +454,13 @@ def recovery_board(request):
 
 @login_required
 def recovery_action(request, log_id, action):
-    """[해결] 누락되었던 복구 일지 수정/삭제 로직"""
     l = get_object_or_404(BehaviorLog, id=log_id, user=request.user)
-    if action == "delete":
-        l.is_hidden = True
-        l.save()
-        messages.success(request, "기록이 삭제되었습니다.")
-    elif action == "edit" and request.method == "POST":
-        l.description = request.POST.get("description")
-        l.save()
-        messages.success(request, "기록이 수정되었습니다.")
+    l.is_hidden = action == "delete"
+    l.save()
     return redirect("recovery_board")
 
 
-# -----------------------------------------------------------------------------
-# [ 6. 기타 서비스 : 레시피, 지도, 게시판 ]
-# -----------------------------------------------------------------------------
-
-
-@login_required
-def recipe_list(request):
-    recipes = Recipe.objects.all().order_by("-created_at")
-    return render(
-        request,
-        "boards/recipe_list.html",
-        {"recipes": recipes, "meds_json": get_meds_json(request.user)},
-    )
-
-
-@login_required
-def recipe_create(request):
-    if request.method == "POST":
-        img = secure_image_validator(request.FILES.get("image"))
-        Recipe.objects.create(
-            author=request.user,
-            title=request.POST.get("title"),
-            ingredients=request.POST.get("ingredients"),
-            instructions=request.POST.get("instructions"),
-            calories=clean_int(request.POST.get("calories")),
-            image=img,
-        )
-        messages.success(request, "레시피 등록 완료!")
-        return redirect("recipe_list")
-    return render(
-        request, "boards/recipe_form.html", {"meds_json": get_meds_json(request.user)}
-    )
-
-
-@login_required
-def hospital_map(request):
-    return render(
-        request, "boards/hospital_map.html", {"meds_json": get_meds_json(request.user)}
-    )
-
-
+# 게시판 기본 뷰
 @login_required
 def post_list(request, slug):
     cat = get_object_or_404(Category, slug=slug)
@@ -555,11 +543,11 @@ def post_vote(request, post_id, vote_type):
 
 
 # -----------------------------------------------------------------------------
-# [ 7. 매니저 시스템 (Full CRUD) ]
+# [ 6. 매니저 시스템 관리 (CRUD 통합) ]
 # -----------------------------------------------------------------------------
 
 
-@user_passes_test(is_manager_or_admin)
+@user_passes_test(is_manager_or_admin, login_url="/accounts/login/")
 def manager_dashboard(request):
     s = {
         "total_users": User.objects.filter(is_superuser=False).count(),
@@ -602,7 +590,7 @@ def category_update(request, cat_id):
         c.name = request.POST.get("name")
         c.slug = request.POST.get("slug")
         c.save()
-        messages.success(request, "카테고리 수정 완료.")
+        messages.success(request, "수정 완료")
     return redirect("category_manage")
 
 
@@ -613,12 +601,18 @@ def category_delete(request, cat_id):
 
 
 @user_passes_test(is_manager_or_admin)
+def manager_post_delete(request, post_id):
+    """[해결포인트] 에러가 났던 매니저 전용 게시글 삭제 함수"""
+    get_object_or_404(Post, id=post_id).delete()
+    return redirect("manager_dashboard")
+
+
+@user_passes_test(is_manager_or_admin)
 def manager_expert_reply(request, log_id):
     log = get_object_or_404(BehaviorLog, id=log_id)
     if request.method == "POST":
         log.expert_tip = request.POST.get("expert_tip")
         log.save()
-        messages.success(request, "전문가 답변 등록!")
         return redirect("manager_dashboard")
     return render(request, "manager/expert_form.html", {"log": log})
 
@@ -644,12 +638,6 @@ def user_action(request, user_id, action):
             u.is_active = True
         u.save()
     return redirect("manager_user_list")
-
-
-@user_passes_test(is_manager_or_admin)
-def manager_post_delete(request, post_id):
-    get_object_or_404(Post, id=post_id).delete()
-    return redirect("manager_dashboard")
 
 
 @user_passes_test(is_manager_or_admin)
